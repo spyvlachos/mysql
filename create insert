@@ -1,0 +1,278 @@
+use company;
+
+CREATE TABLE company
+(
+  name VARCHAR(20) NOT NULL,
+  ΑΦΜ INT NOT NULL,
+  ΔΟΥ VARCHAR(15) NOT NULL,
+  number INT NOT NULL,
+  street VARCHAR(20) NOT NULL,
+  city VARCHAR(20) NOT NULL,
+  country VARCHAR(15) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  PRIMARY KEY (ΑΦΜ)
+)ENGINE=InnoDB;
+
+INSERT INTO company VALUES
+('Ubisoft',1256,'A Patras',2,'Agiou Andreou','Patra','Greece','2610430890');
+
+CREATE TABLE user
+(
+  username VARCHAR(20) NOT NULL,
+  pass VARCHAR(30) NOT NULL,
+  email VARCHAR(30) NOT NULL,
+  reg_date DATE NOT NULL,
+  PRIMARY KEY (username)
+)ENGINE=InnoDB;
+
+INSERT INTO user VALUES
+('Altair','12345','altair@gmail.com','2010-10-1'), #MANAGER
+('Ezio','67890','ezio@gmail.com','2010-10-20'), # EVALUATOR 1
+('Kassandra','54321','kassandra@gmail.com','2010-10-21'), #EVALUATOR 2
+('Eivior','09876','eivior@gmail.com','2010-10-22'), #EVALUATOR 3
+('Connor','abcde','connor@gmail.com','2010-10-30'), #EMPLOYEE 1
+('Edward','fghij','edward@gmail.com','2010-11-1'), #EMPLOYEE 2
+('Alexios','klmno','alexios@gmail.com','2010-11-2'); #ADMIN
+
+INSERT INTO user VALUES
+('Megan','98789','megan@gmail.com','2007-10-1'); #EMPLOYEE 3
+
+
+CREATE TABLE degree
+(
+  title VARCHAR(35),
+  idrima  VARCHAR(60) NOT NULL,
+  etos DATE NOT NULL,
+  grade FLOAT(2,1) NOT NULL,
+  PRIMARY KEY (title)
+)ENGINE=InnoDB;
+
+INSERT INTO degree VALUES
+('Computer Engineering','CEID','2008-2-1',9.2), #Employee 1
+('Economics','Economical University of Athens','2007-2-1',7.0), #Employee1
+('Management & Economics','Business University of Larisa','2006-2-1',8.0), #Employee2
+('Computer Science','EKPA','2004-2-1',9.0);
+
+INSERT INTO degree VALUES
+('Electrical Engineering','University Of Patras','2000-2-1',8.0);
+
+CREATE TABLE evaluators
+(
+  company VARCHAR(20) NOT NULL,
+  eval_id INT NOT NULL,
+  ΑΦΜ INT NOT NULL,
+  username VARCHAR(20) NOT NULL,
+  PRIMARY KEY (eval_id),
+  FOREIGN KEY (ΑΦΜ) REFERENCES company(ΑΦΜ) ON UPDATE CASCADE,
+  FOREIGN KEY (username) REFERENCES user(username)
+)ENGINE=InnoDB;
+
+INSERT INTO  evaluators VALUES('Ubisoft',7540,1256,'Ezio');
+INSERT INTO  evaluators VALUES('Ubisoft',7541,1256,'Kassandra');
+INSERT INTO  evaluators VALUES('Ubisoft',7542,1256,'Eivior');
+
+CREATE TABLE employee
+(
+  AM INT NOT NULL,
+  ΑΦΜ INT NOT NULL,
+  years INT NOT NULL,
+  cv TEXT NOT NULL,
+  certificates VARCHAR(12) NOT NULL UNIQUE,
+  awards VARCHAR(12) NOT NULL,
+  sistatikes VARCHAR(30) UNIQUE,
+  language INT NOT NULL,
+  username VARCHAR(20) NOT NULL,
+  title1 VARCHAR(35),
+  title2 VARCHAR(35),
+  PRIMARY KEY (AM),
+  FOREIGN KEY (ΑΦΜ) REFERENCES company(ΑΦΜ) ON UPDATE CASCADE,
+  FOREIGN KEY (username) REFERENCES user(username),
+  FOREIGN KEY (title1) REFERENCES degree(title),
+  FOREIGN KEY (title2) REFERENCES degree(title)
+)ENGINE=InnoDB;
+
+INSERT INTO employee VALUES
+(7543,1256,7,'cv1.txt','cert1.txt','awards1.txt','sist1',2,'Connor','Computer Engineering','Economics'),
+(7544,1256,8,'cv2.txt','cert2.txt','awards2.txt','sist2',1,'Edward','Computer Science',NULL);
+
+
+
+CREATE TABLE project
+(
+
+  url VARCHAR(50) NOT NULL,
+  num INT AUTO_INCREMENT,
+  AM INT NOT NULL,
+  descr TEXT NOT NULL,
+  PRIMARY KEY (num),
+  FOREIGN KEY (AM) REFERENCES employee(AM)
+)ENGINE=InnoDB;
+
+INSERT INTO project(url,AM,descr) VALUES
+('my cloud.com',7543,'B+ Trees for Databases Indexing'),
+('my cloud.com',7544,'Intelligent Agents in AI');
+
+INSERT INTO project(url,AM,descr) VALUES
+('my cloud.com',7548,'Project.txt');
+
+CREATE TABLE object
+(
+  ΑΦΜ INT NOT NULL,
+  title VARCHAR(20) NOT NULL,
+  descr TEXT NOT NULL,
+  belongs_to_title VARCHAR(20),
+  PRIMARY KEY (title),
+  FOREIGN KEY (belongs_to_title) REFERENCES object(title),
+  FOREIGN KEY(ΑΦΜ) REFERENCES company(ΑΦΜ)
+)ENGINE=InnoDB;
+
+INSERT INTO object VALUES
+(1256,'3D Graphics','Create the world of the game',NULL),
+(1256,'2D Graphics','Create the Menu of the game',NULL);
+
+INSERT INTO object VALUES
+(1256,'Film Direction','Video editing,Casting Actors e.t.c',NULL);
+
+
+CREATE TABLE job
+(
+  job_id INT NOT NULL,
+  title VARCHAR(50) NOT NULL,
+  edra VARCHAR(20) NOT NULL,
+  salary INT NOT NULL,
+  eval_id INT NOT NULL,
+  available_jobs INT NOT NULL,
+  object_title VARCHAR(20) NOT NULL,
+  PRIMARY KEY (job_id),
+  FOREIGN KEY (eval_id) REFERENCES evaluators(eval_id),
+  FOREIGN KEY (object_title) REFERENCES  object(title) ON DELETE CASCADE ON UPDATE CASCADE
+)ENGINE=InnoDB;
+
+INSERT INTO job VALUES
+(3301,'Senior Programmer in 3D Graphics','Patra',20000,7540,1,'3D Graphics'),
+(3302,'Senior Programmer in 2D Graphics','Patra',10000,7541,1,'2D Graphics');
+
+INSERT INTO job VALUES
+(3303,'Director of Video','Patra',5000,7542,1,'Film Direction');
+
+
+
+CREATE TABLE applies
+(
+  job_id INT,
+  available_jobs INT NOT NULL,
+  applies_num INT NOT NULL,
+  AM INT NOT NULL,
+  refer_num INT NOT NULL,
+  PRIMARY KEY (refer_num),
+  FOREIGN KEY (AM) REFERENCES employee(AM),
+  FOREIGN KEY (job_id) REFERENCES job(job_id) ON UPDATE CASCADE ON DELETE CASCADE
+)ENGINE=InnoDB;
+
+
+INSERT INTO applies VALUES
+(3301,1,1,7543,9089),
+(3302,1,2,7543,9090);
+
+INSERT INTO applies VALUES
+(3303,1,1,7544,9091);
+
+
+CREATE TABLE emp_evaluate
+(
+  emp_AM INT NOT NULL,
+  job_id INT NOT NULL,
+  eval_id INT,
+  evaluation INT NOT NULL,
+  grade INT ,
+  evaluation_result INT NOT NULL,
+  comments TEXT NOT NULL,
+  applies_number INT NOT NULL,
+  evaluation_num INT NOT NULL,
+  reference_num INT NOT NULL,
+  PRIMARY KEY(evaluation_num),
+  FOREIGN KEY (eval_id) REFERENCES evaluators(eval_id),
+  FOREIGN KEY (job_id)  REFERENCES  job(job_id),
+  FOREIGN KEY (reference_num) REFERENCES applies(refer_num),
+  FOREIGN KEY (emp_AM) REFERENCES  employee(AM)
+)ENGINE=InnoDB;
+
+INSERT INTO emp_evaluate VALUES
+(7543,3301,7540,1,1,0,'Candidate wasnt prepared well',1,3565,9089),
+(7543,3301,7540,2,3,0,'Manager report was good',1,3566,9089),
+(7543,3302,7541,1,2,0,'Candidate wasnt prepared well',2,3568,9090),
+(7543,3302,7541,2,2,0,'Manager report was good',2,3569,9090),
+(7543,3302,7541,3,1,0,'Qualifications were just not enough',2,3570,9090);
+
+
+CREATE TABLE evaluation
+(
+  job_id INT NOT NULL,
+  refer_number INT NOT NULL,
+  emp_AM INT NOT NULL,
+  interview TEXT NOT NULL,
+  grade1 INT NOT NULL,
+  manage_report TEXT NOT NULL,
+  grade2 INT NOT NULL,
+  certificates VARCHAR(12) NOT NULL,
+  sistatikes VARCHAR(30),
+  project_num INT AUTO_INCREMENT,
+  grade3 INT NOT NULL,
+  evaluation_res INT NOT NULL,
+  eval_id INT,
+  PRIMARY KEY (refer_number),
+  FOREIGN KEY (eval_id) REFERENCES emp_evaluate(eval_id),
+  FOREIGN KEY (project_num) REFERENCES  project(num),
+  FOREIGN KEY (certificates) REFERENCES employee(certificates) ON UPDATE CASCADE,
+  FOREIGN KEY (emp_AM) REFERENCES employee(AM),
+  FOREIGN KEY (sistatikes) REFERENCES employee(sistatikes),
+  FOREIGN KEY (job_id) REFERENCES job(job_id)
+)ENGINE=InnoDB;
+
+
+
+CREATE TABLE log
+(
+  date_time TIMESTAMP NOT NULL,
+  suc_flag INT NOT NULL,
+  kind VARCHAR(10) NOT NULL,
+  table_name VARCHAR(20) NOT NULL,
+  username VARCHAR(20),
+  PRIMARY KEY (date_time)
+)ENGINE=InnoDB;
+
+CREATE TABLE Manager
+(
+  company VARCHAR(20) NOT NULL,
+  years INT NOT NULL,
+  mng_name VARCHAR(20) NOT NULL,
+  ΑΦΜ INT NOT NULL,
+  FOREIGN KEY (mng_name) REFERENCES user(username),
+  FOREIGN KEY (ΑΦΜ) REFERENCES company(ΑΦΜ) ON UPDATE CASCADE
+)ENGINE=InnoDB;
+
+INSERT INTO Manager VALUES
+('Ubisoft',10,'Altair',1256);
+
+
+CREATE TABLE administrator
+(
+  password VARCHAR(30) NOT NULL,
+  admin_name VARCHAR(20) NOT NULL,
+  email VARCHAR(30) NOT NULL,
+  PRIMARY KEY (email),
+  FOREIGN KEY (admin_name) REFERENCES user(username)
+)ENGINE=InnoDB;
+
+INSERT INTO administrator VALUES('klmno','Alexios','alexios@gmail.com');
+
+
+
+CREATE TABLE eval_avg_table
+(
+    ΑΦΜ INT NOT NULL,
+    eval_id INT NOT NULL,
+    avg FLOAT(3,2) NOT NULL
+
+)ENGINE=InnoDB;
+
