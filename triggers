@@ -1,0 +1,60 @@
+use company;
+
+
+DELIMITER $
+
+DROP TRIGGER IF EXISTS update_company;
+
+CREATE TRIGGER update_company
+BEFORE UPDATE ON company
+FOR EACH ROW
+BEGIN
+
+DECLARE name_cp VARCHAR(20);
+DECLARE ΑΦΜ_cp INT;
+DECLARE ΔΟΥ_cp VARCHAR(15);
+
+
+SET NEW.name = OLD.name;
+SET NEW.ΑΦΜ = OLD.ΑΦΜ;
+SET NEW.ΔΟΥ = OLD.ΔΟΥ;
+
+
+
+END$
+
+DELIMITER $
+
+DROP TRIGGER IF EXISTS update_user;
+
+CREATE TRIGGER update_user
+BEFORE UPDATE ON user
+FOR EACH ROW
+BEGIN
+
+
+IF(OLD.username NOT LIKE 'Alexios') THEN
+
+SET NEW.username = OLD.username;
+
+END IF;
+
+
+END$
+
+DELIMITER $
+
+DROP TRIGGER IF EXISTS eval_res$
+
+CREATE TRIGGER eval_res
+AFTER INSERT ON emp_evaluate
+FOR EACH ROW
+BEGIN
+
+DECLARE cnt INT;
+DECLARE cnt1 INT;
+DECLARE eval_num INT;
+
+CALL final_evaluation(NEW.job_id,NEW.emp_AM,NEW.eval_id,NEW.evaluation_num);
+
+END$
