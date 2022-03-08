@@ -1,0 +1,1228 @@
+use company;
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS showEmployeInfo$
+
+ CREATE PROCEDURE showEmployeInfo(IN username1 VARCHAR(20))
+BEGIN
+ DECLARE baplies INT;
+ DECLARE bevaluations INT;
+ DECLARE bidevaluator1 INT;
+ DECLARE finished_flag INT;
+ DECLARE grd1  INT;
+ DECLARE grd2 INT;
+ DECLARE grd3  INT;
+ DECLARE jb_id INT;
+ DECLARE eval_usr1 VARCHAR(20);
+ DECLARE eval_usr2 VARCHAR(20);
+ DECLARE eval_usr3 VARCHAR(20);
+ DECLARE completed_app INT;
+
+DECLARE jb_id_cur CURSOR FOR
+SELECT job_id
+FROM evaluation
+LEFT JOIN employee ON evaluation.emp_AM = employee.AM
+WHERE employee.username=username1;
+
+ DECLARE eval_cursor CURSOR FOR
+ SELECT evaluation.eval_id
+ FROM evaluation
+ LEFT JOIN evaluators ON evaluators.eval_id = evaluation.eval_id
+ LEFT JOIN employee ON employee.AM = evaluation.emp_AM
+ WHERE username1 = employee.username;
+
+ DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished_flag=1;
+
+OPEN  eval_cursor;
+
+SET finished_flag = 0;
+
+SELECT count(applies_num) INTO baplies #Applies of employee with specific AM
+ FROM applies
+LEFT JOIN employee ON employee.username = username1
+WHERE applies.AM = employee.AM;
+
+
+ SELECT count(evaluation_res) INTO bevaluations # Final Applies of employee with specific AM
+ FROM evaluation
+ LEFT JOIN employee ON employee.AM = evaluation.emp_AM
+ WHERE username1=employee.username;
+
+SELECT baplies AS 'Arithmos Aitisewn', bevaluations AS 'Arithmos Epikoirwmenwn Aitisewn';
+
+SET completed_app = 1;
+
+WHILE(finished_flag!=1) DO
+
+FETCH eval_cursor INTO bidevaluator1;
+    IF(finished_flag=0) THEN
+     SELECT username AS 'Aksiologitis' INTO eval_usr1 FROM evaluators WHERE evaluators.eval_id=bidevaluator1;
+
+    SELECT completed_app AS 'Epikoirwmenh Aksiologisi' , eval_usr1, eval_usr2,eval_usr3;
+
+  END IF;
+
+SET completed_app = completed_app +1;
+
+END WHILE;
+
+
+CLOSE eval_cursor;
+
+    SELECT
+    * FROM evaluation
+    LEFT JOIN employee ON employee.AM = evaluation.emp_AM
+    WHERE employee.username=username1 AND employee.AM=evaluation.emp_AM;
+
+
+
+
+ IF(bevaluations<baplies) THEN
+
+SELECT 'Aksiologisi se ekseliksi';
+
+SELECT *
+FROM emp_evaluate
+WHERE emp_evaluate.job_id NOT IN (SELECT job_id FROM evaluation);
+
+
+END IF;
+
+ END$
+
+DELIMITER ;
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS final_evaluation$
+
+CREATE PROCEDURE final_evaluation(IN job_id1 INT,IN emp_AM1 INT,IN evaluator_id INT,IN evaluation_num1 INT)
+BEGIN
+DECLARE count_eval INT;
+DECLARE Sum INT;
+DECLARE finished_flag INT;
+DECLARE grd INT;
+DECLARE project1_num INT;
+DECLARE cnt INT;
+DECLARE grd1 INT;
+DECLARE grd2 INT;
+DECLARE grd3 INT;
+DECLARE ref_num INT;
+DECLARE cert VARCHAR(12);
+DECLARE sist VARCHAR(30);
+DECLARE pr_num INT;
+
+DECLARE grd_cursor CURSOR FOR
+SELECT grade
+FROM emp_evaluate
+WHERE emp_evaluate.job_id=job_id1 AND eval_id = evaluator_id AND emp_AM = emp_AM1;
+
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished_flag=1;
+
+
+SET finished_flag=0;
+SET Sum=0;
+SET cnt = 0;
+SET grd1 = 0;
+SET grd2 = 0;
+SET grd3 = 0;
+
+
+OPEN grd_cursor;
+
+REPEAT
+  FETCH  grd_cursor INTO grd;
+
+  IF(finished_flag=0 AND cnt=0) THEN
+      SET Sum= Sum + grd;
+      SET cnt= cnt+1;
+      SET grd1 = grd1 + grd;
+
+  ELSE IF(finished_flag=0 AND cnt=1) THEN
+
+    SET Sum = Sum+grd;
+    SET cnt = cnt+1;
+    SET grd2 = grd2 + grd;
+
+   ELSE IF(finished_flag=0 AND cnt=2) THEN
+
+     SET Sum = Sum+grd;
+     SET cnt = cnt+1;
+     SET grd3 = grd3 + grd;
+
+  END IF;
+  END IF;
+  END IF;
+
+
+UNTIL(finished_flag=1)
+END REPEAT ;
+
+CLOSE grd_cursor;
+
+SELECT count(job_id) INTO count_eval
+FROM emp_evaluate
+WHERE emp_evaluate.job_id=job_id1 AND emp_evaluate.eval_id = evaluator_id AND emp_evaluate.emp_AM = emp_AM1;
+
+
+SELECT reference_num INTO ref_num
+FROM emp_evaluate
+WHERE emp_evaluate.job_id=job_id1 AND emp_evaluate.eval_id = evaluator_id AND emp_evaluate.emp_AM = emp_AM1 AND evaluation_num = evaluation_num1;
+
+SELECT certificates INTO cert
+FROM employee
+WHERE employee.AM = emp_AM1;
+
+SELECT sistatikes INTO sist
+FROM employee
+WHERE employee.AM = emp_AM1;
+
+SELECT num INTO pr_num
+FROM project
+WHERE AM = emp_AM1;
+
+IF(pr_num = NULL)
+THEN
+
+SET pr_num = 0;
+
+SELECT count(num) INTO project1_num
+FROM project;
+
+SET pr_num = pr_num + project1_num;
+
+END IF;
+
+
+IF(count_eval=3) THEN
+
+
+INSERT INTO evaluation (job_id, refer_number, emp_AM, interview, grade1, manage_report, grade2, certificates, sistatikes,project_num, grade3, evaluation_res,eval_id)
+VALUES(job_id1,ref_num,emp_AM1,'inter.txt',grd1,'mng.txt',grd2,cert,sist,pr_num,grd3,Sum,evaluator_id);
+
+END IF;
+
+END$
+
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS all_evaluations $
+
+CREATE PROCEDURE all_evaluations(IN jb_id INT,OUT opt INT,OUT pending INT)
+BEGIN
+DECLARE applies_number INT;
+DECLARE final_evaluations INT;
+DECLARE pending_evaluations INT;
+
+SELECT count(job_id) INTO applies_number
+FROM applies
+WHERE job_id = jb_id;
+
+SELECT count(job_id) INTO final_evaluations
+FROM evaluation
+WHERE job_id = jb_id;
+
+SET pending_evaluations = applies_number - final_evaluations;
+
+IF(applies_number=final_evaluations AND applies_number!=0) THEN
+SELECT 'Oristikopoimenoi Pinakes';
+
+ SELECT *
+ FROM evaluation
+ LEFT JOIN employee ON evaluation.emp_AM = employee.AM
+ WHERE job_id = jb_id
+ ORDER BY evaluation_res DESC;
+
+SET opt = 1;
+
+ELSE IF(applies_number!=final_evaluations) THEN
+
+SELECT *
+FROM evaluation
+LEFT JOIN employee ON evaluation.emp_AM = employee.AM
+WHERE job_id=jb_id
+ORDER BY evaluation_res DESC;
+
+SELECT pending_evaluations AS 'Aksiologisi se ekseliksi ekremoyn ';
+
+SET opt=2;
+SET pending = pending_evaluations;
+
+ELSE
+
+SELECT 'No applies have been made';
+
+SET opt=3;
+
+END IF;
+
+END IF;
+
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS job_alter$
+
+CREATE PROCEDURE job_alter (IN option INT ,IN job_id1 INT, IN title1 VARCHAR(50), IN edra1 VARCHAR(20),IN salary1 INT,
+                            IN eval_id1 INT,IN available_jobs1 INT, IN object_title1 VARCHAR(20))
+BEGIN
+
+DECLARE usr_name VARCHAR(20);
+DECLARE update_err1 INT;
+DECLARE update_err2 INT;
+DECLARE eval_id_ INT;
+
+DECLARE EXIT HANDLER FOR  1062
+
+BEGIN
+
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','job',usr_name);
+END;
+
+
+DECLARE EXIT HANDLER FOR 1451
+BEGIN
+
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+INSERT INTO log VALUES
+(current_timestamp,0,'delete','job',usr_name);
+END;
+
+DECLARE EXIT HANDLER FOR 1452
+BEGIN
+
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','job',usr_name);
+END;
+
+
+
+
+
+IF(option=1) THEN
+
+
+INSERT INTO JOB VALUES
+(job_id1,title1,edra1,salary1,eval_id1,available_jobs1,object_title1);
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+
+INSERT INTO log VALUES
+(current_timestamp,1,'insert','job',usr_name);
+
+
+ELSE IF(option=2) THEN
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+SELECT count(job_id) INTO update_err1
+FROM job
+WHERE job.job_id = job_id1;
+
+SELECT eval_id INTO eval_id_
+FROM job
+WHERE job.job_id = job_id1;
+
+IF(update_err1=0 OR eval_id_!=eval_id1) THEN
+
+INSERT INTO log VALUES (current_timestamp,0,'update','job',usr_name);
+
+ELSE
+
+ UPDATE job
+SET job.job_id = job_id1, job.title = title1, job.edra=edra1,job.salary=salary1,job.eval_id=eval_id1,job.available_jobs=available_jobs1,job.object_title=object_title1
+WHERE job_id = job_id1;
+
+
+INSERT INTO log VALUES (current_timestamp,1,'update','job',usr_name);
+
+
+END IF;
+
+
+ELSE
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE evaluators.eval_id = eval_id1;
+
+DELETE FROM job
+WHERE job_id=job_id1;
+
+INSERT INTO log VALUES (current_timestamp,1,'delete','job',usr_name);
+
+
+END IF;
+
+END IF;
+
+
+
+END$
+
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS employee_alter$
+
+CREATE PROCEDURE employee_alter (IN option INT ,IN AM1 INT, IN ΑΦΜ1 VARCHAR(50), IN years1 INT,IN cv1 TEXT,
+                            IN certificates1 VARCHAR(12),IN awards1 VARCHAR(12), IN language1 INT, IN username1 VARCHAR(20),
+                            IN title_1 VARCHAR(35), IN title_2 VARCHAR(35),IN username2 VARCHAR(20))
+BEGIN
+
+DECLARE usr_name VARCHAR(20);
+DECLARE update_err1 INT;
+DECLARE update_err2 INT;
+DECLARE eval_id_ INT;
+
+DECLARE EXIT HANDLER FOR  1062
+
+BEGIN
+
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','job',username2);
+END;
+
+
+DECLARE EXIT HANDLER FOR 1451
+BEGIN
+
+INSERT INTO log VALUES
+(current_timestamp,0,'delete','job',username2);
+END;
+
+
+
+
+IF(option=1 AND username2  LIKE 'Alexios') THEN
+
+
+INSERT INTO employee VALUES
+(AM1,ΑΦΜ1,years1,cv1,certificates1,awards1,language1,username1,title_1,title_2);
+
+
+INSERT INTO log VALUES
+(current_timestamp,1,'insert','employee','Alexios');
+
+
+ELSE IF(option=1 AND username2 NOT LIKE 'Alexios') THEN
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','employee',username2);
+
+
+ELSE IF(option=2 AND username2  LIKE 'Altair') THEN
+
+
+UPDATE employee
+SET  certificates=certificates1, awards=awards1
+WHERE username=username1;
+
+INSERT INTO log VALUES (current_timestamp,1,'update','employee','Altair');
+
+ELSE IF(option=2 AND username2  NOT LIKE 'Altair') THEN
+
+UPDATE employee
+SET  cv = cv1
+WHERE username=username1;
+
+INSERT INTO log VALUES (current_timestamp,1,'update','job',username1);
+
+
+
+ELSE IF (option=3) THEN
+
+DELETE FROM employee
+WHERE employee.username=username1;
+
+END IF;
+
+END IF;
+
+END IF;
+
+END IF;
+
+END IF;
+
+
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS emp_evaluate_alter$
+
+CREATE PROCEDURE emp_evaluate_alter (IN option INT ,IN emp_AM1 INT, IN job_id1 INT, IN eval_id1 INT,IN evaluation1 INT,
+                            IN grade1 INT,IN evaluation_result1 INT, IN comments1 TEXT, IN applies_num1 INT,
+                            IN evaluation_num1 INT, IN refer_num1 INT)
+BEGIN
+
+DECLARE usr_name VARCHAR(20);
+DECLARE update_error INT;
+DECLARE eval_id_ INT;
+DECLARE job_id2 INT;
+DECLARE insert_error INT;
+DECLARE evaluation2 INT;
+
+
+DECLARE EXIT HANDLER FOR 1048
+BEGIN
+
+
+INSERT INTO log VALUES
+(current_timestamp,0,'update','emp_evaluate','Invalid User');
+
+
+END;
+
+DECLARE EXIT HANDLER FOR  1062
+
+BEGIN
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE eval_id =eval_id1;
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','emp_evaluate',usr_name);
+END;
+
+
+DECLARE EXIT HANDLER FOR 1451
+BEGIN
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE eval_id =eval_id1;
+
+INSERT INTO log VALUES
+(current_timestamp,0,'delete','emp_evaluate',usr_name);
+END;
+
+DECLARE EXIT HANDLER FOR 1452
+BEGIN
+
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE eval_id =eval_id1;
+
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','emp_evaluate',usr_name);
+
+END;
+
+
+SELECT username INTO usr_name
+FROM evaluators
+WHERE eval_id=eval_id1;
+
+
+SELECT count(job_id) INTO insert_error
+FROM emp_evaluate
+WHERE eval_id =eval_id1 AND job_id = job_id1;
+
+SET update_error = insert_error;
+
+SELECT evaluation INTO evaluation2
+FROM emp_evaluate
+WHERE eval_id = eval_id1 AND job_id = job_id1;
+
+IF(option=1) THEN
+
+IF(evaluation1>3 OR insert_error=1) THEN
+
+INSERT INTO log VALUES
+(current_timestamp,0,'insert','emp_evaluate',usr_name);
+
+
+ELSE
+
+INSERT INTO emp_evaluate VALUES
+(emp_AM1,job_id1,eval_id1,evaluation1,grade1,evaluation_result1,comments1,applies_num1,evaluation_num1,refer_num1);
+
+INSERT INTO log VALUES
+(current_timestamp,1,'insert','emp_evaluate',usr_name);
+
+END IF;
+
+
+ELSE IF(option=2) THEN
+
+IF(update_error=0) THEN
+
+INSERT INTO log VALUES
+(current_timestamp,0,'update','emp_evaluate',usr_name);
+
+
+ELSE IF(update_error!=0 AND evaluation2=evaluation1) THEN
+
+UPDATE emp_evaluate
+SET grade = grade1
+WHERE eval_id = eval_id1 AND job_id = job_id1;
+
+INSERT INTO log VALUES
+(current_timestamp,1,'update','emp_evaluate',usr_name);
+
+ELSE
+INSERT INTO log VALUES
+(current_timestamp,0,'update','emp_evaluate',usr_name);
+
+END IF;
+
+END IF;
+
+END IF;
+
+END IF;
+
+
+
+END$
+
+# GUI PROCEDURES
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_usr$
+
+CREATE PROCEDURE get_usr(IN usn VARCHAR(20), IN pass1 VARCHAR(30),OUT opt INT,OUT opt2 INT)
+BEGIN
+
+DECLARE mng INT;
+DECLARE eval INT;
+DECLARE emp INT;
+DECLARE admin INT;
+DECLARE password VARCHAR(30);
+
+SELECT count(mng_name) INTO mng
+FROM manager
+WHERE mng_name = usn;
+
+SELECT count(username) INTO eval
+FROM evaluators
+WHERE username = usn;
+
+SELECT count(username) INTO emp
+FROM employee
+WHERE username = usn;
+
+SELECT count(admin_name) INTO admin
+FROM administrator
+WHERE admin_name = usn;
+
+SELECT count(pass) INTO password
+FROM user
+WHERE pass = pass1 AND username = usn;
+
+IF(mng>=1) THEN
+
+SET opt =1;
+
+IF(password>=1) THEN
+
+SET opt2 = 1;
+
+END IF;
+
+
+ELSE IF(eval>=1) THEN
+
+
+SET opt = 2;
+
+IF(password>=1) THEN
+
+SET opt2 = 1;
+
+END IF;
+
+ELSE IF(emp>=1) THEN
+
+SET opt = 3;
+
+IF(password>=1) THEN
+
+SET opt2 = 1;
+
+END IF;
+
+ELSE IF (admin=1) THEN
+
+SET opt = 4;
+
+IF(password>=1) THEN
+
+SET opt2 = 1;
+
+END IF;
+
+END IF;
+
+END IF;
+
+END IF;
+
+END IF;
+
+
+END $
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS count_eval$
+
+CREATE PROCEDURE count_eval(IN cmp_afm1 INT,OUT cnt_Eval INT)
+BEGIN
+
+DECLARE cnt INT;
+
+SELECT count(eval_id) INTO cnt
+FROM evaluators
+WHERE ΑΦΜ = cmp_afm1;
+
+SET cnt_Eval = cnt;
+
+END$
+
+
+DELIMITER ;
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS eval_avg$
+
+CREATE PROCEDURE eval_avg(INOUT eval_id1 INT , OUT avg FLOAT(3,2))
+BEGIN
+
+DECLARE sum INT;
+DECLARE avg1 FLOAT(3,2);
+DECLARE cnt INT;
+DECLARE usrn VARCHAR(20);
+DECLARE afm_cmp INT;
+
+SELECT sum(grade) INTO sum
+FROM emp_evaluate
+WHERE eval_id = eval_id1;
+
+SELECT count(grade) INTO cnt
+FROM emp_evaluate
+WHERE eval_id = eval_id1;
+
+SELECT username INTO usrn
+FROM evaluators
+WHERE eval_id = eval_id1;
+
+SELECT ΑΦΜ INTO afm_cmp
+FROM evaluators
+WHERE eval_id = eval_id1;
+
+SET avg1 = sum / cnt;
+
+SET avg = avg1;
+
+INSERT INTO eval_avg_table VALUES
+(afm_cmp,eval_id1,avg);
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_Emp_AM$
+
+CREATE PROCEDURE get_Emp_AM(IN usr VARCHAR(20) , OUT AM1 INT)
+BEGIN
+
+DECLARE AM2 INT;
+
+SELECT AM INTO AM2
+FROM employee
+WHERE username = usr;
+
+SET AM1 = AM2;
+
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_eval_id$
+
+CREATE PROCEDURE get_eval_id(IN usr VARCHAR(20) , OUT eval_id1 INT)
+BEGIN
+
+DECLARE eval_id2 INT;
+
+SELECT eval_id INTO eval_id2
+FROM evaluators
+WHERE username = usr;
+
+SET eval_id1 = eval_id2;
+
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS job_owner$
+
+CREATE PROCEDURE job_owner(IN job_id1 INT,IN eval_id1 INT, OUT opt2 INT)
+BEGIN
+
+DECLARE cnt INT;
+
+SELECT count(job_id) INTO cnt
+FROM job
+WHERE job_id = job_id1 AND eval_id = eval_id1;
+
+IF(cnt=1) THEN
+
+SET opt2 = 1;
+
+ELSE
+
+SET opt2 = 0;
+
+END IF;
+
+
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_job_title$
+
+CREATE PROCEDURE get_job_title(IN job_id1 INT, OUT title1 VARCHAR(20))
+BEGIN
+
+DECLARE obj_title VARCHAR(20);
+
+SELECT object_title INTO obj_title
+FROM job
+WHERE job_id = job_id1;
+
+SET title1 = obj_title;
+
+END $
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_avail_jobs$
+
+CREATE PROCEDURE get_avail_jobs(IN job_id1 INT,OUT available INT)
+BEGIN
+
+DECLARE avail INT;
+
+SELECT available_jobs INTO avail
+FROM job
+WHERE job_id = job_id1;
+
+SET available = avail;
+
+END$
+
+
+DELIMITER $
+
+DROP  PROCEDURE IF EXISTS get_applies_num$
+
+CREATE PROCEDURE get_applies_num(IN emp_am INT,OUT app_num INT)
+BEGIN
+
+DECLARE cnt INT;
+DECLARE app_num1 INT;
+
+SET app_num1 = 1;
+
+SELECT count(AM) INTO cnt
+FROM applies
+WHERE AM = emp_am;
+
+SET app_num1 = app_num1 + cnt;
+
+SET app_num = app_num1;
+
+
+END$
+
+DELIMITER $
+
+DROP  PROCEDURE IF EXISTS get_refer_num$
+
+CREATE PROCEDURE get_refer_num(OUT refer_num1 INT)
+BEGIN
+
+DECLARE cnt INT;
+DECLARE refer__num INT;
+
+SET refer__num = 9089;
+
+SELECT count(refer_num) INTO cnt
+FROM applies;
+
+SET refer__num = refer__num + cnt;
+
+SET refer_num1 = refer__num;
+
+END$
+
+DELIMITER $
+
+DROP  PROCEDURE IF EXISTS get_cert$
+
+CREATE PROCEDURE get_cert(OUT count1 INT)
+BEGIN
+
+DECLARE cnt INT;
+
+SELECT count(AM) INTO cnt
+FROM employee;
+
+
+SET count1 = cnt + 1;
+
+END $
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_emp$
+
+CREATE PROCEDURE get_emp(OUT emp INT)
+BEGIN
+
+DECLARE eval_id_Max INT;
+DECLARE emp_am_Max INT;
+DECLARE cnt INT;
+DECLARE cnt1 INT;
+DECLARE finished_flag INT;
+DECLARE eval__id INT;
+DECLARE i INT;
+DECLARE emp__am INT;
+DECLARE finished_flag2 INT;
+
+
+DECLARE eval_id1 CURSOR FOR
+SELECT eval_id
+FROM evaluators;
+
+DECLARE emp_am1 CURSOR FOR
+SELECT employee.AM
+FROM employee;
+
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished_flag=1;
+
+OPEN eval_id1;
+
+SET finished_flag=0;
+SET i=1;
+
+SELECT count(eval_id) INTO cnt
+FROM evaluators;
+
+REPEAT
+
+FETCH eval_id1 INTO eval__id;
+
+IF(finished_flag=0 AND i=cnt) THEN
+
+SET eval_id_Max =   eval__id;
+
+END IF;
+
+SET i = i +1;
+
+UNTIL(finished_flag=1)
+
+END REPEAT ;
+
+OPEN emp_am1;
+
+SET finished_flag=0;
+
+SET i=1;
+
+SELECT count(AM) INTO cnt1
+FROM employee;
+
+SELECT cnt1;
+
+REPEAT
+
+FETCH emp_am1 INTO emp__am;
+
+IF(finished_flag=0 AND i=cnt1) THEN
+
+SET emp_am_Max =  emp__am;
+
+END IF;
+
+SET i = i+1;
+
+UNTIL(finished_flag=1)
+
+END REPEAT;
+
+CLOSE emp_am1;
+CLOSE eval_id1;
+
+
+SELECT emp_am_Max , eval_id_Max;
+
+IF(emp_am_Max > eval_id_Max) THEN
+
+SET emp = emp_am_Max + 1;
+
+ELSE
+
+SET emp = eval_id_Max + 1;
+
+END IF;
+
+
+
+END $
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_cmp_afm$
+
+CREATE PROCEDURE get_cmp_afm(IN nm VARCHAR(20), OUT afm INT)
+BEGIN
+
+DECLARE afm1 INT;
+
+SELECT ΑΦΜ INTO afm1
+FROM company
+WHERE name = nm;
+
+SET afm =  afm1;
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_user_pass$
+
+CREATE PROCEDURE get_user_pass(IN nm VARCHAR(20),OUT passwrd VARCHAR(30))
+BEGIN
+
+DECLARE passw VARCHAR(30);
+
+SELECT pass INTO passw
+FROM user
+WHERE username = nm;
+
+SET passwrd = passw;
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_cmp_afm_eval$
+
+CREATE PROCEDURE get_cmp_afm_eval(IN eval_id1 INT,OUT afm INT)
+BEGIN
+
+DECLARE afm1 INT;
+
+SELECT ΑΦΜ INTO afm1
+FROM evaluators
+WHERE eval_id = eval_id1;
+
+SET afm = afm1;
+
+
+END$
+
+DELIMITER $
+
+DROP  PROCEDURE IF EXISTS get_eval_num$
+
+CREATE PROCEDURE get_eval_num(OUT eval_num1 INT)
+BEGIN
+
+DECLARE cnt INT;
+DECLARE eval__num INT;
+
+SET eval__num = 3565;
+
+SELECT count(evaluation_num) INTO cnt
+FROM emp_evaluate;
+
+SET eval__num = eval__num + cnt;
+
+SET eval_num1 = eval__num;
+
+END$
+
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_cmp_afm_mng$
+
+CREATE PROCEDURE get_cmp_afm_mng(IN mn_name VARCHAR(20),OUT afm INT)
+BEGIN
+
+DECLARE afm1 INT;
+
+SELECT ΑΦΜ INTO afm1
+FROM manager
+WHERE mng_name = mn_name;
+
+SET afm = afm1;
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_edra$
+
+CREATE PROCEDURE get_edra(IN cmp_afm INT,OUT edra1 VARCHAR(20))
+BEGIN
+
+DECLARE edra_ VARCHAR(20);
+
+SELECT city INTO edra_
+FROM company
+WHERE ΑΦΜ = cmp_afm;
+
+SET edra1 = edra_;
+
+END$
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS set_job_id$
+
+CREATE PROCEDURE set_job_id(OUT job_id1 INT)
+BEGIN
+
+DECLARE job_id_ INT;
+DECLARE cnt INT;
+
+SET job_id_ = 3301;
+
+SELECT count(job_id) INTO cnt
+FROM job;
+
+
+SET job_id_ = job_id_ + cnt;
+
+SET job_id1 = job_id_;
+
+END$
+
+
+
+
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_evaluation$
+
+CREATE PROCEDURE get_evaluation(IN eval_id1 INT,IN emp_am1 INT,IN job_id1 INT,OUT evaluation1 INT)
+BEGIN
+
+DECLARE cnt INT;
+DECLARE evalu INT;
+
+SELECT count(evaluation) INTO cnt
+FROM emp_evaluate
+WHERE eval_id = eval_id1 AND emp_AM = emp_am1 AND job_id = job_id1;
+
+IF(cnt = 0) THEN
+
+SET evalu = 1;
+
+SET evaluation1 = evalu;
+
+ELSE
+
+SET evalu = 1;
+
+SET evalu = evalu + cnt;
+
+SET evaluation1 = evalu;
+
+END IF;
+
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_cmp_afm_emp$
+
+CREATE PROCEDURE get_cmp_afm_emp(IN emp_am1 INT ,OUT cmp_afm INT)
+BEGIN
+
+DECLARE cmp_afm1 INT;
+
+SELECT ΑΦΜ INTO cmp_afm1
+FROM employee
+WHERE AM = emp_am1;
+
+SET cmp_afm = cmp_afm1;
+
+END$
+
+DELIMITER $
+
+DROP PROCEDURE IF EXISTS get_first_eval$
+
+CREATE PROCEDURE get_first_eval(IN cmp_Afm INT,OUT eval INT)
+BEGIN
+
+DECLARE first_Eval CURSOR FOR
+SELECT eval_id
+FROM evaluators
+WHERE ΑΦΜ = cmp_Afm;
+
+OPEN first_Eval;
+
+FETCH first_Eval INTO eval;
+
+END$
